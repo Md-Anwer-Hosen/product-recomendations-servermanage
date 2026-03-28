@@ -1,0 +1,15 @@
+
+.env
+
+node_modules
+
+zapshift-firebase-auth-config.json
+
+
+zapshift-firebase-auth-config.json
+.vercel
+
+
+node_modules
+.env
+zapshift-firebase-auth-config.json
