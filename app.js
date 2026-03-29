@@ -7,11 +7,12 @@ const client = require("./db");
 
 const app = express();
 
+// ১. CORS config
 const corsOptions = {
   origin: [
     "http://localhost:5173",
+    "https://zapshift-courier-management.firebaseapp.com/",
     "https://zapshift-courier-management.firebaseapp.com",
-    "https://zapshift-courier-management.web.app",
   ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -19,17 +20,20 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
 
 app.use(express.json());
 
 try {
   if (!admin.apps.length) {
-    const decoded = Buffer.from(
-      process.env.FIREBASE_SERVICE_KEY,
-      "base64",
-    ).toString("utf8");
-    const serviceAccount = JSON.parse(decoded);
+    const rawKey = process.env.FIREBASE_SERVICE_KEY;
+
+    let serviceAccount;
+    if (rawKey.startsWith("{")) {
+      serviceAccount = JSON.parse(rawKey);
+    } else {
+      const decoded = Buffer.from(rawKey, "base64").toString("utf8");
+      serviceAccount = JSON.parse(decoded);
+    }
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
@@ -37,7 +41,7 @@ try {
     console.log("✅ Firebase Admin Initialized");
   }
 } catch (error) {
-  console.error("❌ Firebase Init Error:", error.message);
+  console.error(" Firebase Init Error:", error.message);
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -47,26 +51,15 @@ async function run() {
     await client.connect();
 
     const db = client.db("zapshiftDB");
-    const userCollection = db.collection("users");
-    const parcelCollection = db.collection("parcels");
-    const paymentCollection = db.collection("payments");
-    const riderCollection = db.collection("riders");
-
     const collections = {
-      userCollection,
-      parcelCollection,
-      paymentCollection,
-      riderCollection,
+      userCollection: db.collection("users"),
+      parcelCollection: db.collection("parcels"),
+      paymentCollection: db.collection("payments"),
+      riderCollection: db.collection("riders"),
       stripe,
     };
-    app.locals.collections = collections;
 
-    // Routes Import
-    const userRoutes = require("./routes/userRoutes");
-    const parcelRoutes = require("./routes/parcelRoutes");
-    const riderRoutes = require("./routes/riderRoutes");
-    const paymentRoutes = require("./routes/paymentRoutes");
-    const dashboardRoutes = require("./routes/dashboardRoutes");
+    app.locals.collections = collections;
 
     // Root Route
     app.get("/", (req, res) => {
@@ -74,15 +67,15 @@ async function run() {
     });
 
     // API Endpoints
-    app.use(userRoutes);
-    app.use(parcelRoutes);
-    app.use(riderRoutes);
-    app.use(paymentRoutes);
-    app.use(dashboardRoutes);
+    app.use(require("./routes/userRoutes"));
+    app.use(require("./routes/parcelRoutes"));
+    app.use(require("./routes/riderRoutes"));
+    app.use(require("./routes/paymentRoutes"));
+    app.use(require("./routes/dashboardRoutes"));
 
-    console.log("✅ MongoDB connected and Routes initialized");
+    console.log(" MongoDB connected successfully");
   } catch (error) {
-    console.error("❌ Connection error:", error);
+    console.error(" DB Connection error:", error);
   }
 }
 
